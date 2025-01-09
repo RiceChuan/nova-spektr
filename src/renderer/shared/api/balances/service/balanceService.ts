@@ -4,13 +4,12 @@ import { type Vec } from '@polkadot/types';
 import { type AccountData, type Balance as ChainBalance } from '@polkadot/types/interfaces';
 import { type PalletBalancesBalanceLock } from '@polkadot/types/lookup';
 import { type Codec } from '@polkadot/types/types';
-import { type BN, BN_ZERO, hexToU8a } from '@polkadot/util';
+import { BN, BN_ZERO, hexToU8a } from '@polkadot/util';
 import { camelCase } from 'lodash';
 import noop from 'lodash/noop';
 import uniq from 'lodash/uniq';
 
 import {
-  type AccountId,
   type Address,
   type Asset,
   AssetType,
@@ -20,12 +19,14 @@ import {
   type OrmlExtras,
 } from '@/shared/core';
 import { getAssetId, getRepeatedIndex, groupBy, isHex, nullable, toAddress } from '@/shared/lib/utils';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
 
 type NoIdBalance = Omit<Balance, 'id'>;
 
 export const balanceService = {
   subscribeBalances,
   subscribeLockBalances,
+  getExistentialDeposit,
 };
 
 /**
@@ -156,7 +157,7 @@ function subscribeStatemineAssetsChange(
     throw new Error(`Pallet ${pallet} not found.`);
   }
 
-  const type = api.tx.foreignAssets.transfer.meta.args[0].type;
+  const type = api.tx[pallet]?.transfer.meta.args[0].type;
   if (nullable(type)) {
     return Promise.resolve(noop);
   }
@@ -323,4 +324,18 @@ function subscribeLockOrmlAssetChange(
 
     callback(newLocks);
   });
+}
+
+async function getExistentialDeposit(api: ApiPromise, asset: Asset): Promise<BN> {
+  switch (asset.type) {
+    case AssetType.NATIVE: {
+      return api.consts.balances.existentialDeposit.toBn();
+    }
+    case AssetType.STATEMINE: {
+      return await api.query.assets.asset(asset.assetId).then((balance) => balance.value.minBalance.toBn());
+    }
+    case AssetType.ORML: {
+      return new BN((asset.typeExtras as OrmlExtras).existentialDeposit);
+    }
+  }
 }

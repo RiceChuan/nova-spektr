@@ -1,8 +1,9 @@
 import { type PropsWithChildren, type ReactNode } from 'react';
 
-import { type AccountId, type Address, type Explorer } from '@/shared/core';
+import { type Address, type Explorer } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { cnTw, copyToClipboard, getAccountExplorer, toAddress } from '@/shared/lib/utils';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
 import { ContextMenu, ExplorerLink, HelpText, IconButton } from '@/shared/ui';
 
 type Props = {
@@ -61,6 +62,10 @@ const PopoverGroup = ({ title, active = true, children }: PropsWithChildren<Grou
   );
 };
 
+/**
+ * @deprecated Use `import { AccountExplorers, RootExplorers } from
+ *   '@/shared/ui-entities'` instead.
+ */
 export const ExplorersPopover = Object.assign(ExplorersPopoverRoot, {
   Group: PopoverGroup,
 });

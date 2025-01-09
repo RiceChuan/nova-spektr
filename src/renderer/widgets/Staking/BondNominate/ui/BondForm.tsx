@@ -6,7 +6,6 @@ import { type Address, RewardsDestination } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { formatBalance, toAddress, toShortAddress, validateAddress } from '@/shared/lib/utils';
 import {
-  AmountInput,
   Button,
   Combobox,
   DetailRow,
@@ -16,14 +15,15 @@ import {
   InputHint,
   MultiSelect,
   RadioGroup,
-  Tooltip,
 } from '@/shared/ui';
 import { type RadioOption } from '@/shared/ui/types';
+import { Tooltip } from '@/shared/ui-kit';
 import { AssetBalance } from '@/entities/asset';
 import { SignatorySelector } from '@/entities/operations';
 import { AssetFiatBalance, priceProviderModel } from '@/entities/price';
 import { FeeLoader } from '@/entities/transaction';
 import { AccountAddress, ProxyWalletAlert, accountUtils } from '@/entities/wallet';
+import { AmountInput } from '@/features/assets-balances';
 import { formModel } from '../model/form-model';
 
 type Props = {
@@ -98,7 +98,7 @@ const AccountsSelector = () => {
   }
 
   const options = accounts.map(({ account, balance }) => {
-    const isShard = accountUtils.isShardAccount(account);
+    const isShard = accountUtils.isVaultShardAccount(account);
     const address = toAddress(account.accountId, { prefix: network.chain.addressPrefix });
 
     return {
@@ -225,7 +225,7 @@ const Destination = () => {
   }));
 
   const destinationOptions = destinationAccounts.map((account) => {
-    const isShard = accountUtils.isShardAccount(account);
+    const isShard = accountUtils.isVaultShardAccount(account);
     const address = toAddress(account.accountId, { prefix: network.chain.addressPrefix });
 
     return {
@@ -248,9 +248,9 @@ const Destination = () => {
   const prefixElement = (
     <div className="flex h-auto items-center">
       {validateAddress(payout) ? (
-        <Identicon className="mr-1" address={payout} size={20} background={false} canCopy={false} />
+        <Identicon address={payout} size={20} background={false} canCopy={false} />
       ) : (
-        <Icon className="mr-2" size={20} name="emptyIdenticon" />
+        <Icon size={20} name="emptyIdenticon" />
       )}
     </div>
   );
@@ -320,8 +320,13 @@ const FeeSection = () => {
             <>
               <Icon className="text-text-tertiary" name="lock" size={12} />
               <FootnoteText className="text-text-tertiary">{t('staking.multisigDepositLabel')}</FootnoteText>
-              <Tooltip content={t('staking.tooltips.depositDescription')} offsetPx={-90}>
-                <Icon name="info" className="cursor-pointer hover:text-icon-hover" size={16} />
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <div tabIndex={0}>
+                    <Icon name="info" className="cursor-pointer hover:text-icon-hover" size={16} />
+                  </div>
+                </Tooltip.Trigger>
+                <Tooltip.Content>{t('staking.tooltips.depositDescription')}</Tooltip.Content>
               </Tooltip>
             </>
           }

@@ -26,7 +26,7 @@ import {
 } from '@/entities/staking';
 import { accountUtils, permissionUtils, walletModel, walletUtils } from '@/entities/wallet';
 import { EmptyAccountMessage } from '@/features/emptyList';
-import { walletSelectModel } from '@/features/wallets';
+import { WalletDetails } from '@/features/wallet-details';
 import * as Operations from '@/widgets/Staking';
 import { type NominatorInfo, Operations as StakeOperations } from '../lib/types';
 
@@ -60,6 +60,7 @@ export const Staking = () => {
 
   const [selectedNominators, setSelectedNominators] = useState<Address[]>([]);
   const [selectedStash, setSelectedStash] = useState<Address>('');
+  const [showWalletDetails, setShowWalletDetails] = useState(false);
 
   const identities = useStoreMap({
     store: identityDomain.identity.$list,
@@ -77,7 +78,7 @@ export const Staking = () => {
     activeWallet?.accounts.filter((account, _, collection) => {
       if (!chainId) return false;
 
-      const isBaseAccount = accountUtils.isBaseAccount(account);
+      const isBaseAccount = accountUtils.isVaultBaseAccount(account);
       const isPolkadotVault = walletUtils.isPolkadotVault(activeWallet);
       const hasManyAccounts = collection.length > 1;
 
@@ -347,7 +348,7 @@ export const Staking = () => {
             {networkIsActive && activeWallet && accounts.length === 0 && (
               <EmptyList message={<EmptyAccountMessage walletType={activeWallet.type} />}>
                 {walletUtils.isPolkadotVault(activeWallet) && (
-                  <Button variant="text" onClick={() => walletSelectModel.events.walletIdSet(activeWallet.id)}>
+                  <Button variant="text" onClick={() => setShowWalletDetails(true)}>
                     {t('emptyState.addNewAccountButton')}
                   </Button>
                 )}
@@ -367,6 +368,12 @@ export const Staking = () => {
         explorers={explorers}
         isOpen={isShowNominators}
         onClose={toggleNominators}
+      />
+
+      <WalletDetails
+        isOpen={showWalletDetails}
+        wallet={activeWallet ?? null}
+        onClose={() => setShowWalletDetails(false)}
       />
 
       <Operations.BondNominate />

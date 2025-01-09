@@ -1,11 +1,15 @@
-import { combine, createEvent, createStore, restore, sample } from 'effector';
+import { type ApiPromise } from '@polkadot/api';
+import { type SubmittableExtrinsic } from '@polkadot/api/types';
+import { BN, BN_ZERO } from '@polkadot/util';
+import { combine, createEffect, createEvent, createStore, restore, sample } from 'effector';
 import { createForm } from 'effector-forms';
+import { camelCase } from 'lodash';
 import isEmpty from 'lodash/isEmpty';
 import { spread } from 'patronum';
 
+import { type XcmConfig, xcmService } from '@/shared/api/xcm';
 import {
   type Account,
-  type AccountId,
   type Address,
   type Chain,
   type ChainId,
@@ -23,13 +27,16 @@ import {
   nonNullable,
   toAccountId,
   toAddress,
+  toLocalChainId,
   transferableAmount,
   validateAddress,
 } from '@/shared/lib/utils';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
 import { createTxStore } from '@/shared/transactions';
+import * as networkDomain from '@/domains/network';
 import { balanceModel, balanceUtils } from '@/entities/balance';
 import { networkModel, networkUtils } from '@/entities/network';
-import { TransferType, transactionBuilder, transactionService } from '@/entities/transaction';
+import { TransferType, getExtrinsic, transactionBuilder, transactionService } from '@/entities/transaction';
 import { accountUtils, walletModel, walletUtils } from '@/entities/wallet';
 import { TransferRules } from '@/features/operations/OperationsValidation';
 import { type NetworkStore } from '../lib/types';
@@ -87,8 +94,17 @@ const $fee = restore(feeChanged, ZERO_BALANCE);
 const $multisigDeposit = restore(multisigDepositChanged, ZERO_BALANCE);
 const $isFeeLoading = restore(isFeeLoadingChanged, true);
 const $isXcm = createStore<boolean>(false);
+const $deliveryFee = createStore(BN_ZERO);
 
 const $selectedSignatories = createStore<Account[]>([]);
+
+const $totalFee = combine(
+  {
+    fee: $fee,
+    deliveryFee: $deliveryFee,
+  },
+  ({ fee, deliveryFee }) => new BN(fee).add(deliveryFee).toString(),
+);
 
 const $transferForm = createForm<FormParams>({
   fields: {
@@ -97,7 +113,7 @@ const $transferForm = createForm<FormParams>({
       rules: [
         TransferRules.account.noProxyFee(
           combine({
-            fee: $fee,
+            fee: $totalFee,
             isProxy: $isProxy,
             proxyBalance: $proxyBalance,
           }),
@@ -110,7 +126,7 @@ const $transferForm = createForm<FormParams>({
         TransferRules.signatory.noSignatorySelected($isMultisig),
         TransferRules.signatory.notEnoughTokens(
           combine({
-            fee: $fee,
+            fee: $totalFee,
             isMultisig: $isMultisig,
             multisigDeposit: $multisigDeposit,
             balance: $signatoryBalance,
@@ -138,7 +154,7 @@ const $transferForm = createForm<FormParams>({
         ),
         TransferRules.amount.insufficientBalanceForXcmFee(
           combine({
-            fee: $fee,
+            fee: $totalFee,
             xcmFee: xcmTransferModel.$xcmFee,
             network: $networkStore,
             balance: $accountBalance,
@@ -223,11 +239,20 @@ const $fakeTx = combine(
 
     const transactionType = network.asset.type ? TransferType[network.asset.type] : TransactionType.TRANSFER;
 
+    const palletName =
+      network.asset.typeExtras && 'palletName' in network.asset.typeExtras
+        ? camelCase(network.asset.typeExtras.palletName)
+        : 'assets';
+
     return {
       chainId: network.chain.chainId,
       address: toAddress(TEST_ACCOUNTS[0], { prefix: network.chain.addressPrefix }),
       type: transactionType,
-      args: { destination: toAddress(TEST_ACCOUNTS[0], { prefix: network.chain.addressPrefix }), ...xcmData?.args },
+      args: {
+        palletName,
+        destination: toAddress(TEST_ACCOUNTS[0], { prefix: network.chain.addressPrefix }),
+        ...xcmData?.args,
+      },
     };
   },
 );
@@ -273,7 +298,7 @@ const $accounts = combine(
 
     const { chain, asset } = network;
     const walletAccounts = walletUtils.getAccountsBy([wallet], (a, w) => {
-      const isBase = accountUtils.isBaseAccount(a);
+      const isBase = accountUtils.isVaultBaseAccount(a);
       const isPolkadotVault = walletUtils.isPolkadotVault(w);
 
       return (!isBase || !isPolkadotVault) && accountUtils.isChainAndCryptoMatch(a, network.chain);
@@ -366,7 +391,7 @@ const $destinationAccounts = combine(
     if (!isXcm || !wallet || !chain.chainId) return [];
 
     return walletUtils.getAccountsBy([wallet], (a, w) => {
-      const isBase = accountUtils.isBaseAccount(a);
+      const isBase = accountUtils.isVaultBaseAccount(a);
       const isPolkadotVault = walletUtils.isPolkadotVault(w);
 
       return (!isBase || !isPolkadotVault) && accountUtils.isChainAndCryptoMatch(a, chain);
@@ -393,6 +418,59 @@ const $canSubmit = combine(
   },
   ({ isXcm, isFormValid, isFeeLoading, isXcmFeeLoading }) => {
     return isFormValid && !isFeeLoading && (!isXcm || !isXcmFeeLoading);
+  },
+);
+
+const $extrinsic = combine(
+  {
+    api: $api,
+    coreTx: $coreTx,
+  },
+  ({ api, coreTx }) => {
+    if (!api || !coreTx) return null;
+
+    return getExtrinsic[coreTx.type](coreTx.args, api);
+  },
+);
+
+const $xcmChain = combine(
+  {
+    chains: networkModel.$chains,
+    xcmChainId: xcmTransferModel.$xcmChainId,
+  },
+  ({ chains, xcmChainId }) => {
+    if (!xcmChainId) return null;
+
+    return chains[xcmChainId] ?? null;
+  },
+);
+
+const getDeliveryFeeFx = createEffect(
+  async ({
+    config,
+    parachainId,
+    api,
+    extrinsic,
+    destinationChain,
+  }: {
+    config: XcmConfig | null;
+    parachainId: number | null;
+    api: ApiPromise | null;
+    extrinsic?: SubmittableExtrinsic<'promise'> | null;
+    destinationChain: Chain | null;
+  }) => {
+    if (config && api && parachainId && extrinsic && destinationChain) {
+      return xcmService.getDeliveryFeeFromConfig({
+        config,
+        originChain: toLocalChainId(api.genesisHash.toHex()) || '',
+        originApi: api,
+        destinationChainId: parachainId,
+        extrinsic,
+        destinationChain,
+      });
+    } else {
+      return BN_ZERO;
+    }
   },
 );
 
@@ -453,7 +531,8 @@ sample({
   clock: $transferForm.fields.account.onChange,
   source: $accounts,
   fn: (accounts, account) => {
-    const match = accounts.find((a) => a.account.id === account.id);
+    const id = networkDomain.accountsService.uniqId(account);
+    const match = accounts.find((a) => networkDomain.accountsService.uniqId(a.account) === id);
 
     return match?.balances || { balance: ZERO_BALANCE, native: ZERO_BALANCE };
   },
@@ -499,7 +578,12 @@ sample({
     return !isEmpty(signatories) && nonNullable(signatory);
   },
   fn: (signatories, signatory) => {
-    const match = signatories[0].find(({ signer }) => signer.id === signatory!.id);
+    if (!signatory) {
+      return ZERO_BALANCE;
+    }
+
+    const id = networkDomain.accountsService.uniqId(signatory);
+    const match = signatories[0].find(({ signer }) => networkDomain.accountsService.uniqId(signer) === id);
 
     return match?.balance || ZERO_BALANCE;
   },
@@ -609,6 +693,29 @@ sample({
   target: formSubmitted,
 });
 
+sample({
+  clock: $extrinsic,
+  source: {
+    api: $api,
+    parachainId: xcmTransferModel.$xcmParaId,
+    config: xcmTransferModel.$config,
+    extrinsic: $extrinsic,
+    destinationChain: $xcmChain,
+  },
+  target: getDeliveryFeeFx,
+});
+
+sample({
+  clock: getDeliveryFeeFx.doneData,
+  target: $deliveryFee,
+});
+
+sample({
+  clock: getDeliveryFeeFx.fail,
+  fn: () => BN_ZERO,
+  target: $deliveryFee,
+});
+
 export const formModel = {
   $transferForm,
   $proxyWallet,
@@ -626,6 +733,7 @@ export const formModel = {
 
   $fee,
   $multisigDeposit,
+  $deliveryFee,
 
   $coreTx,
   $fakeTx,

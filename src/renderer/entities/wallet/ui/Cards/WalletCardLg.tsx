@@ -1,9 +1,9 @@
 import { type ReactNode } from 'react';
 
-import { type Wallet } from '@/shared/core';
+import { type Wallet, WalletIconType } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { cnTw } from '@/shared/lib/utils';
-import { FootnoteText, StatusLabel } from '@/shared/ui';
+import { BodyText, FootnoteText, StatusLabel } from '@/shared/ui';
 import { walletUtils } from '../../lib/wallet-utils';
 import { WalletIcon } from '../WalletIcon/WalletIcon';
 
@@ -19,10 +19,15 @@ export const WalletCardLg = ({ wallet, description, full, className }: Props) =>
 
   const isWalletConnect = walletUtils.isWalletConnectGroup(wallet);
 
+  const type =
+    walletUtils.isFlexibleMultisig(wallet) && !wallet.activated
+      ? WalletIconType.FLEXIBLE_MULTISIG_INACTIVE
+      : wallet.type;
+
   return (
     <div className={cnTw('flex h-8 w-full min-w-0 items-center gap-x-2', className)}>
       <div className="relative">
-        <WalletIcon type={wallet.type} size={32} />
+        <WalletIcon type={type} size={32} />
         {isWalletConnect && !full && (
           <span
             className={cnTw(
@@ -33,7 +38,7 @@ export const WalletCardLg = ({ wallet, description, full, className }: Props) =>
         )}
       </div>
       <div className="flex min-w-0 flex-col">
-        <FootnoteText className="truncate text-text-primary">{wallet.name}</FootnoteText>
+        <BodyText className="truncate text-text-primary">{wallet.name}</BodyText>
         {typeof description === 'string' ? (
           <FootnoteText className="text-text-tertiary">{description}</FootnoteText>
         ) : (

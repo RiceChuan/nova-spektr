@@ -4,7 +4,7 @@ import { type Chain } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { BodyText } from '@/shared/ui';
 import { RankedAccount } from '@/shared/ui-entities';
-import { type Vote as VoteType } from '@/domains/collectives';
+import { type CoreMember, type Vote as VoteType } from '@/domains/collectives';
 import { identityModel } from '../model/identity';
 import { membersModel } from '../model/members';
 
@@ -29,14 +29,16 @@ export const Vote = ({ item, chain }: Props) => {
   });
 
   return (
-    <RankedAccount
-      rank={member?.rank || 0}
-      isActive={member?.isActive || false}
-      name={identity?.name}
-      accountId={item.accountId}
-      chain={chain}
-    >
-      <BodyText>{t('fellowship.votingHistory.votes', { count: item.votes })}</BodyText>
-    </RankedAccount>
+    <div className="rounded-md pe-2 text-text-secondary hover:bg-action-background-hover hover:text-text-primary">
+      <RankedAccount
+        rank={member?.rank || 0}
+        isActive={(member as CoreMember)?.isActive || false}
+        name={identity?.name}
+        accountId={item.accountId}
+        chain={chain}
+      >
+        <BodyText>{t('fellowship.votingHistory.votes', { count: item.votes })}</BodyText>
+      </RankedAccount>
+    </div>
   );
 };

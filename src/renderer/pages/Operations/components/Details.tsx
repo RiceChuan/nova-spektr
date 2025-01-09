@@ -1,10 +1,14 @@
+import { type ApiPromise } from '@polkadot/api';
 import { useStoreMap, useUnit } from 'effector-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Trans } from 'react-i18next';
 
 import {
-  type Account,
+  type Account as AccountType,
   type Address,
+  type Chain,
+  type FlexibleMultisigAccount,
+  type FlexibleMultisigTransaction,
   type MultisigAccount,
   type MultisigTransaction,
   type Transaction,
@@ -16,14 +20,14 @@ import { useToggle } from '@/shared/lib/hooks';
 import { cnTw, toAccountId } from '@/shared/lib/utils';
 import { type AccountId } from '@/shared/polkadotjs-schemas';
 import { CaptionText, DetailRow, FootnoteText, Icon } from '@/shared/ui';
-import { AccountExplorers } from '@/shared/ui-entities';
+import { Account, AccountExplorers } from '@/shared/ui-entities';
 import { Box, Skeleton } from '@/shared/ui-kit';
 import { identityDomain } from '@/domains/identity';
 import { AssetBalance } from '@/entities/asset';
 import { ChainTitle } from '@/entities/chain';
 import { TracksDetails, voteTransactionService } from '@/entities/governance';
 import { getTransactionFromMultisigTx } from '@/entities/multisig';
-import { type ExtendedChain, networkModel, networkUtils } from '@/entities/network';
+import { networkModel, networkUtils } from '@/entities/network';
 import { proxyUtils } from '@/entities/proxy';
 import { SelectedValidatorsModal, useValidatorsMap } from '@/entities/staking';
 import {
@@ -36,8 +40,8 @@ import {
   isUndelegateTransaction,
   isXcmTransaction,
 } from '@/entities/transaction';
-import { AddressWithExplorers, WalletIcon, walletModel } from '@/entities/wallet';
-import { AddressStyle, InteractionStyle } from '../common/constants';
+import { WalletIcon, walletModel } from '@/entities/wallet';
+import { InteractionStyle } from '../common/constants';
 import {
   getDelegate,
   getDelegationTarget,
@@ -55,15 +59,21 @@ import {
 } from '../common/utils';
 
 type Props = {
-  tx: MultisigTransaction;
-  account?: MultisigAccount;
-  signatory?: Account;
-  extendedChain?: ExtendedChain;
+  tx: MultisigTransaction | FlexibleMultisigTransaction;
+  account?: MultisigAccount | FlexibleMultisigAccount;
+  signatory?: AccountType;
+  chain: Chain;
+  api: ApiPromise;
 };
 
-export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
+export const Details = ({ api, tx, account, chain, signatory }: Props) => {
   const { t } = useI18n();
 
+  const connection = useStoreMap({
+    store: networkModel.$connections,
+    keys: [chain.chainId],
+    fn: (connections, [chainId]) => connections[chainId] ?? null,
+  });
   const activeWallet = useUnit(walletModel.$activeWallet);
   const wallets = useUnit(walletModel.$wallets);
   const chains = useUnit(networkModel.$chains);
@@ -94,8 +104,6 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
 
   const signatoryWallet = wallets.find((w) => w.id === signatory?.walletId);
 
-  const api = extendedChain?.api;
-
   useEffect(() => {
     if (isUndelegateTransaction(transaction)) {
       setIsUndelegationLoading(true);
@@ -110,10 +118,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
     });
   }, [api, tx]);
 
-  const connection = extendedChain?.connection;
-  const defaultAsset = extendedChain?.assets[0];
-  const addressPrefix = extendedChain?.addressPrefix;
-  const explorers = extendedChain?.explorers;
+  const defaultAsset = chain?.assets?.[0];
 
   const validatorsMap = useValidatorsMap(api, connection && networkUtils.isLightClientConnection(connection));
 
@@ -139,13 +144,13 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
   const selectedValidators: Validator[] =
     allValidators.filter((v) => (transaction?.args.targets || startStakingValidators).includes(v.address)) || [];
 
-  const proxied = useMemo((): { wallet: Wallet; account: Account } | undefined => {
+  const proxied = useMemo((): { wallet: Wallet; account: AccountType } | undefined => {
     if (!tx.transaction || !isProxyTransaction(tx.transaction)) {
       return undefined;
     }
 
     const proxiedAccountId = toAccountId(tx.transaction.args.real);
-    const { wallet, account } = wallets.reduce<{ wallet?: Wallet; account?: Account }>(
+    const { wallet, account } = wallets.reduce<{ wallet?: Wallet; account?: AccountType }>(
       (acc, wallet) => {
         if (acc.wallet) {
           return acc;
@@ -185,14 +190,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
           </DetailRow>
 
           <DetailRow label={t('operation.details.senderAccount')} className="text-text-secondary">
-            <AddressWithExplorers
-              explorers={explorers}
-              addressFont={AddressStyle}
-              type="short"
-              accountId={proxied.account.accountId}
-              addressPrefix={addressPrefix}
-              wrapperClassName="-mr-2 min-w-min"
-            />
+            <Account chain={chain} accountId={proxied.account.accountId} variant="short" />
           </DetailRow>
 
           <hr className="border-filter-border" />
@@ -213,7 +211,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
           <Box direction="row" gap={2}>
             <WalletIcon type={signatoryWallet.type} size={16} />
             <span>{signatoryWallet.name}</span>
-            {extendedChain ? <AccountExplorers accountId={signatory.accountId} chain={extendedChain} /> : null}
+            {chain ? <AccountExplorers accountId={signatory.accountId} chain={chain} /> : null}
           </Box>
         </DetailRow>
       )}
@@ -223,14 +221,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
           label={t(hasSender ? 'operation.details.sender' : 'operation.details.account')}
           className="text-text-secondary"
         >
-          <AddressWithExplorers
-            explorers={explorers}
-            addressFont={AddressStyle}
-            type="short"
-            accountId={account.accountId}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={account.accountId} variant="short" />
         </DetailRow>
       )}
 
@@ -263,27 +254,13 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
 
       {isAddProxyTransaction(transaction) && delegate && (
         <DetailRow label={t('operation.details.delegateTo')} className="text-text-secondary">
-          <AddressWithExplorers
-            explorers={explorers}
-            addressFont={AddressStyle}
-            type="short"
-            address={delegate}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={delegate} variant="short" />
         </DetailRow>
       )}
 
       {isRemoveProxyTransaction(transaction) && delegate && (
         <DetailRow label={t('operation.details.revokeFor')} className="text-text-secondary">
-          <AddressWithExplorers
-            explorers={explorers}
-            addressFont={AddressStyle}
-            type="short"
-            address={delegate}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={delegate} variant="short" />
         </DetailRow>
       )}
 
@@ -293,14 +270,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
             <FootnoteText className="text-text-secondary">{t(proxyUtils.getProxyTypeName(proxyType))}</FootnoteText>
           </DetailRow>
           <DetailRow label={t('operation.details.revokeFor')} className="text-text-secondary">
-            <AddressWithExplorers
-              explorers={explorers}
-              addressFont={AddressStyle}
-              type="short"
-              accountId={spawner}
-              addressPrefix={addressPrefix}
-              wrapperClassName="-mr-2 min-w-min"
-            />
+            <Account chain={chain} accountId={spawner} variant="short" />
           </DetailRow>
         </>
       )}
@@ -319,14 +289,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
 
       {destination && (
         <DetailRow label={t('operation.details.recipient')} className="text-text-secondary">
-          <AddressWithExplorers
-            type="short"
-            explorers={explorers}
-            addressFont={AddressStyle}
-            address={destination}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={destination} variant="short" />
         </DetailRow>
       )}
 
@@ -338,14 +301,7 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
           {typeof payee === 'string' ? (
             t('staking.confirmation.restakeRewards')
           ) : (
-            <AddressWithExplorers
-              explorers={explorers}
-              addressFont={AddressStyle}
-              type="short"
-              address={payee.Account}
-              addressPrefix={addressPrefix}
-              wrapperClassName="-mr-2 min-w-min"
-            />
+            <Account chain={chain} accountId={payee.Account} variant="short" />
           )}
         </DetailRow>
       )}
@@ -397,27 +353,13 @@ export const Details = ({ tx, account, extendedChain, signatory }: Props) => {
 
       {delegationTarget && (
         <DetailRow label={t('operation.details.delegationTarget')} className="text-text-secondary">
-          <AddressWithExplorers
-            explorers={explorers}
-            addressFont={AddressStyle}
-            type="short"
-            address={delegationTarget}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={delegationTarget} variant="short" />
         </DetailRow>
       )}
 
       {!delegationTarget && undelegationTarget && (
         <DetailRow label={t('operation.details.delegationTarget')} className="text-text-secondary">
-          <AddressWithExplorers
-            explorers={explorers}
-            addressFont={AddressStyle}
-            type="short"
-            address={undelegationTarget}
-            addressPrefix={addressPrefix}
-            wrapperClassName="-mr-2 min-w-min"
-          />
+          <Account chain={chain} accountId={undelegationTarget} variant="short" />
         </DetailRow>
       )}
 

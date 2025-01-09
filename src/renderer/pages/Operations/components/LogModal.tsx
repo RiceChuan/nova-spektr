@@ -2,11 +2,11 @@ import { useUnit } from 'effector-react';
 import groupBy from 'lodash/groupBy';
 
 import { chainsService } from '@/shared/api/network';
-import { type MultisigTransactionDS } from '@/shared/api/storage';
+import { type FlexibleMultisigTransactionDS, type MultisigTransactionDS } from '@/shared/api/storage';
 import {
   type Account,
-  type AccountId,
   type Contact,
+  type FlexibleMultisigAccount,
   type MultisigAccount,
   type MultisigEvent,
   type SigningStatus,
@@ -15,6 +15,7 @@ import {
 } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { SS58_DEFAULT_PREFIX, getAssetById, getExtrinsicExplorer, sortByDateAsc, toAddress } from '@/shared/lib/utils';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
 import { BaseModal, BodyText, ContextMenu, ExplorerLink, FootnoteText, IconButton, Identicon } from '@/shared/ui';
 import { AssetBalance } from '@/entities/asset';
 import { useMultisigEvent } from '@/entities/multisig';
@@ -26,8 +27,8 @@ import { getSignatoryName } from '../common/utils';
 import { Status } from './Status';
 
 type Props = {
-  tx: MultisigTransactionDS;
-  account?: MultisigAccount;
+  tx: MultisigTransactionDS | FlexibleMultisigTransactionDS;
+  account?: MultisigAccount | FlexibleMultisigAccount;
   connection?: ExtendedChain;
   contacts: Contact[];
   isOpen: boolean;
@@ -115,7 +116,7 @@ const LogModal = ({ isOpen, onClose, tx, account, connection, contacts }: Props)
           {asset && amount && <AssetBalance value={amount} asset={asset} className="truncate" />}
         </TransactionTitle>
 
-        <Status className="shrink-0" status={status} signed={approvals.length} threshold={account?.threshold || 0} />
+        <Status status={status} signed={approvals.length} threshold={account?.threshold || 0} />
       </div>
 
       <div className="flex max-h-[600px] min-h-[464px] flex-col gap-y-4 overflow-y-scroll bg-main-app-background p-5">

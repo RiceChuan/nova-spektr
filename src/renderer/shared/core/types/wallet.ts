@@ -1,10 +1,13 @@
+// eslint-disable-next-line boundaries/element-types
+import { type AnyAccount } from '@/domains/network';
+
 import {
-  type Account,
-  type BaseAccount,
-  type ChainAccount,
+  type FlexibleMultisigAccount,
   type MultisigAccount,
   type ProxiedAccount,
-  type ShardAccount,
+  type VaultBaseAccount,
+  type VaultChainAccount,
+  type VaultShardAccount,
   type WcAccount,
 } from './account';
 import { type ID } from './general';
@@ -13,36 +16,54 @@ export interface Wallet {
   id: ID;
   name: string;
   type: WalletType;
-  accounts: Account[];
+  /**
+   * @deprecated You should use accounts directly from
+   *   `networkDomain.accounts.$list` or filtered in some form. Filtering by
+   *   wallet can be done by
+   *   `networkDomain.accountsService.filterAccountsByWallet(accounts,
+   *   walletId)`.
+   */
+  accounts: AnyAccount[];
   isActive: boolean;
+  /**
+   * @deprecated You should use `account.signingType` field instead. Wallet
+   *   shouldn't be part of signing process.
+   */
   signingType: SigningType;
   isHidden?: boolean;
 }
 
 export interface PolkadotVaultWallet extends Wallet {
   type: WalletType.POLKADOT_VAULT;
-  accounts: (BaseAccount | ChainAccount | ShardAccount)[];
+  accounts: (VaultBaseAccount | VaultChainAccount | VaultShardAccount)[];
 }
 
 export interface SingleShardWallet extends Wallet {
   type: WalletType.SINGLE_PARITY_SIGNER;
-  accounts: BaseAccount[];
+  accounts: VaultBaseAccount[];
 }
 
 export interface MultiShardWallet extends Wallet {
   type: WalletType.MULTISHARD_PARITY_SIGNER;
-  accounts: (BaseAccount | ChainAccount)[];
+  accounts: (VaultBaseAccount | VaultChainAccount)[];
 }
 
 export interface WatchOnlyWallet extends Wallet {
   type: WalletType.WATCH_ONLY;
-  accounts: BaseAccount[];
+  accounts: VaultBaseAccount[];
 }
 
 // TODO: try to move signatories data out of account
 export interface MultisigWallet extends Wallet {
   type: WalletType.MULTISIG;
   accounts: MultisigAccount[];
+}
+
+// TODO: try to move signatories data out of account
+export interface FlexibleMultisigWallet extends Wallet {
+  type: WalletType.FLEXIBLE_MULTISIG;
+  activated: boolean;
+  accounts: FlexibleMultisigAccount[];
 }
 
 export interface ProxiedWallet extends Wallet {
@@ -68,6 +89,7 @@ export const enum WalletType {
   WATCH_ONLY = 'wallet_wo',
   POLKADOT_VAULT = 'wallet_pv',
   MULTISIG = 'wallet_ms',
+  FLEXIBLE_MULTISIG = 'wallet_fxms',
   WALLET_CONNECT = 'wallet_wc',
   NOVA_WALLET = 'wallet_nw',
   PROXIED = 'wallet_pxd',
@@ -87,6 +109,7 @@ export type SignableWalletFamily =
 export type WalletFamily =
   | WalletType.POLKADOT_VAULT
   | WalletType.MULTISIG
+  | WalletType.FLEXIBLE_MULTISIG
   | WalletType.WATCH_ONLY
   | WalletType.WALLET_CONNECT
   | WalletType.NOVA_WALLET
@@ -102,4 +125,8 @@ export const enum SigningType {
   MULTISIG = 'signing_ms',
   POLKADOT_VAULT = 'signing_pv',
   WALLET_CONNECT = 'signing_wc',
+}
+
+export enum WalletIconType {
+  FLEXIBLE_MULTISIG_INACTIVE = 'wallet_fxms_inactive',
 }

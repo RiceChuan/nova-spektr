@@ -4,8 +4,9 @@ import { type ReactNode } from 'react';
 import { useI18n } from '@/shared/i18n';
 import { useToggle } from '@/shared/lib/hooks';
 import { toAccountId } from '@/shared/lib/utils';
-import { Button, DetailRow, FootnoteText, Icon, Tooltip } from '@/shared/ui';
+import { Button, DetailRow, FootnoteText, Icon } from '@/shared/ui';
 import { Account, TransactionDetails } from '@/shared/ui-entities';
+import { Tooltip } from '@/shared/ui-kit';
 import { AssetBalance } from '@/entities/asset';
 import { SignButton } from '@/entities/operations';
 import { AssetFiatBalance } from '@/entities/price';
@@ -77,15 +78,20 @@ export const Confirmation = ({ id = 0, onGoBack, secondaryActionButton, hideSign
 
           <hr className="w-full border-filter-border pr-2" />
 
-          {accountUtils.isMultisigAccount(confirmStore.shards[0]) && (
+          {confirmStore.shards?.[0] && accountUtils.isMultisigAccount(confirmStore.shards[0]) && (
             <DetailRow
               className="text-text-primary"
               label={
                 <>
                   <Icon className="text-text-tertiary" name="lock" size={12} />
                   <FootnoteText className="text-text-tertiary">{t('staking.multisigDepositLabel')}</FootnoteText>
-                  <Tooltip content={t('staking.tooltips.depositDescription')} offsetPx={-90}>
-                    <Icon name="info" className="cursor-pointer hover:text-icon-hover" size={16} />
+                  <Tooltip>
+                    <Tooltip.Trigger>
+                      <div tabIndex={0}>
+                        <Icon name="info" className="cursor-pointer hover:text-icon-hover" size={16} />
+                      </div>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>{t('staking.tooltips.depositDescription')}</Tooltip.Content>
                   </Tooltip>
                 </>
               }

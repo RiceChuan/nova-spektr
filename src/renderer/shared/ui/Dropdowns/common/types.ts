@@ -1,9 +1,14 @@
 import { type MouseEvent, type ReactNode } from 'react';
 
-import { type IconNames } from '../../types';
+import { type IconNames } from '../../Icon/data';
 
 export type Position = 'up' | 'down' | 'auto';
 export type Theme = 'dark' | 'light';
+
+export const ThemeStyles: Record<Theme, string> = {
+  light: 'bg-input-background text-text-primary',
+  dark: 'text-white',
+};
 
 export type DropdownOption<T = any> = {
   id: string;

@@ -20,14 +20,14 @@ const $input = combine(
       chain: network.chain,
       chainId: network.chainId,
       palletType: network.palletType,
+      accounts: wallet.accounts,
       wallets,
       wallet,
-      accounts: wallet.accounts,
     };
   },
 );
 
 export const votingFeatureStatus = createFeature({
-  name: 'fellowshipVoting',
+  name: 'fellowship/voting',
   input: $input,
 });

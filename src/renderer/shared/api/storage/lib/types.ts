@@ -1,9 +1,7 @@
-import { type BN } from '@polkadot/util';
 import { type Table } from 'dexie';
 
 import {
   type Account,
-  type AccountId,
   type Balance,
   type BasketTransaction,
   type CallHash,
@@ -11,14 +9,20 @@ import {
   type ChainMetadata,
   type Connection,
   type Contact,
+  type FlexibleMultisigTransaction,
   type MultisigEvent,
   type MultisigTransaction,
   type MultisigTransactionKey,
   type Notification,
   type ProxyAccount,
   type ProxyGroup,
+  type Serializable,
   type Wallet,
 } from '@/shared/core';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
+// TODO don't know what to do here, looks like it's impossible to decouple storage service because of version migration code.
+// eslint-disable-next-line boundaries/element-types
+import { type AnyAccount } from '@/domains/network';
 
 // =====================================================
 // ================ Storage interface ==================
@@ -72,12 +76,15 @@ export type ID = string;
 type WithID<T extends NonNullable<unknown>> = { id?: ID } & T;
 
 export type MultisigTransactionDS = WithID<MultisigTransaction>;
+export type FlexibleMultisigTransactionDS = WithID<FlexibleMultisigTransaction>;
 export type MultisigEventDS = WithID<MultisigEvent>;
+export type AnyAccountDS = AnyAccount & { id: string };
 
 export type TWallet = Table<Omit<Wallet, 'accounts'>, Wallet['id']>;
 export type TContact = Table<Contact, Contact['id']>;
 export type TAccount = Table<Account, Account['id']>;
-export type TBalance = Table<BnToString<Balance>, Balance['id']>;
+export type TAccount2 = Table<AnyAccountDS, AnyAccountDS['id']>;
+export type TBalance = Table<Serializable<Balance>, Balance['id']>;
 export type TConnection = Table<Connection, Connection['id']>;
 export type TProxy = Table<ProxyAccount, ProxyAccount['id']>;
 export type TProxyGroup = Table<ProxyGroup, ProxyGroup['id']>;
@@ -86,20 +93,3 @@ export type TMultisigEvent = Table<MultisigEvent, ID>;
 export type TNotification = Table<Notification, Notification['id']>;
 export type TMetadata = Table<ChainMetadata, ChainMetadata['id']>;
 export type TBasketTransaction = Table<BasketTransaction, BasketTransaction['id']>;
-
-// =====================================================
-// ===================== Utility =======================
-// =====================================================
-
-/**
- * Convert any BN | undefined to string | undefined
- */
-export type BnToString<T> = {
-  [K in keyof T]: T[K] extends BN | undefined
-    ? string
-    : T[K] extends (infer U)[] | undefined
-      ? BnToString<U>[] | undefined
-      : T[K] extends object
-        ? BnToString<T[K]>
-        : T[K];
-};

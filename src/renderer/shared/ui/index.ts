@@ -4,10 +4,6 @@ export { BaseModal, ConfirmModal, StatusModal } from './Modals';
 
 export { Select, Combobox, MultiSelect, DropdownIconButton } from './Dropdowns';
 
-export { Popover, Tooltip, MenuPopover, useParentScrollLock } from './Popovers';
-
-export { Input, AmountInput, PasswordInput, SearchInput, InputArea, InputFile } from './Inputs';
-
 export {
   LargeTitleText,
   TitleText,
@@ -22,7 +18,6 @@ export {
 } from './Typography';
 
 export { Plate } from './Plate/Plate';
-export { Card } from './Card/Card';
 export { OperationStatus } from './OperationStatus/OperationStatus';
 export { Separator } from './Separator/Separator';
 export { InputHint } from './InputHint/InputHint';

@@ -13,6 +13,7 @@ export type {
   SingleShardWallet,
   MultiShardWallet,
   MultisigWallet,
+  FlexibleMultisigWallet,
   WatchOnlyWallet,
   WalletConnectWallet,
   NovaWalletWallet,
@@ -22,17 +23,19 @@ export type {
   ProxiedWallet,
   SignableWalletFamily,
 } from './types/wallet';
-export { WalletType, SigningType } from './types/wallet';
+export { WalletType, WalletIconType, SigningType } from './types/wallet';
 
 export { AccountType, KeyType } from './types/account';
 export type {
   Account,
-  BaseAccount,
-  ChainAccount,
+  WatchOnlyAccount,
+  VaultBaseAccount,
+  VaultChainAccount,
   MultisigAccount,
+  FlexibleMultisigAccount,
   WcAccount,
   ProxiedAccount,
-  ShardAccount,
+  VaultShardAccount,
   DraftAccount,
 } from './types/account';
 
@@ -63,10 +66,17 @@ export type {
   PartialProxiedAccount,
   ProxyDeposits,
   ProxyGroup,
+  ProxyType,
 } from './types/proxy';
-export { ProxyType, ProxyVariant } from './types/proxy';
+export { ProxyVariant } from './types/proxy';
 
-export type { Notification, MultisigCreated, MultisigOperation, ProxyAction } from './types/notification';
+export type {
+  Notification,
+  MultisigCreated,
+  FlexibleMultisigCreated,
+  MultisigOperation,
+  ProxyAction,
+} from './types/notification';
 export { NotificationType } from './types/notification';
 
 export { XcmPallets } from './types/substrate';
@@ -79,6 +89,7 @@ export type {
   DecodedTransaction,
   MultisigEvent,
   MultisigTransaction,
+  FlexibleMultisigTransaction,
   MultisigTransactionKey,
   TxWrapper,
   TxWrappers_OLD,

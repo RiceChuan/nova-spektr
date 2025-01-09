@@ -1,4 +1,6 @@
-import { type AccountId, type CallHash, type ChainId, type ID, type Timepoint } from './general';
+import { type AccountId } from '@/shared/polkadotjs-schemas';
+
+import { type CallHash, type ChainId, type ID, type Timepoint } from './general';
 import { type ProxyType, type ProxyVariant } from './proxy';
 import { type WalletType } from './wallet';
 
@@ -7,6 +9,8 @@ export const enum NotificationType {
   MULTISIG_APPROVED = 'MultisigApprovedNotification',
   MULTISIG_EXECUTED = 'MultisigExecutedNotification',
   MULTISIG_CANCELLED = 'MultisigCancelledNotification',
+
+  FLEXIBLE_MULTISIG_CREATED = 'FlexibleMultisigCreatedNotification',
 
   PROXY_CREATED = 'ProxyCreatedNotification',
   PROXY_REMOVED = 'ProxyRemovedNotification',
@@ -21,10 +25,17 @@ type BaseNotification = {
 
 type MultisigBaseNotification = BaseNotification & {
   multisigAccountId: AccountId;
-  originatorAccountId: AccountId;
 };
 
 export type MultisigCreated = MultisigBaseNotification & {
+  signatories: AccountId[];
+  threshold: number;
+  multisigAccountName: string;
+  chainId: ChainId;
+};
+
+export type FlexibleMultisigCreated = MultisigBaseNotification & {
+  walletId: number;
   signatories: AccountId[];
   threshold: number;
   multisigAccountName: string;

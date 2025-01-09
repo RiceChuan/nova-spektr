@@ -5,11 +5,12 @@ import { Trans } from 'react-i18next';
 import { type Account } from '@/shared/core';
 import { useI18n } from '@/shared/i18n';
 import { nonNullable, toAddress } from '@/shared/lib/utils';
-import { BodyText, Button, FootnoteText, Icon, IconButton, Tooltip } from '@/shared/ui';
-import { Box, Checkbox, Modal } from '@/shared/ui-kit';
+import { BodyText, Button, FootnoteText, Icon, IconButton } from '@/shared/ui';
+import { AccountExplorers } from '@/shared/ui-entities';
+import { Box, Checkbox, Modal, Tooltip } from '@/shared/ui-kit';
 import { AssetBalance } from '@/entities/asset';
 import { allTracks, votingService } from '@/entities/governance';
-import { ContactItem, ExplorersPopover, accountUtils, walletModel } from '@/entities/wallet';
+import { ContactItem, accountUtils, walletModel } from '@/entities/wallet';
 import { editDelegationModel } from '@/widgets/EditDelegationModal';
 import { revokeDelegationModel } from '@/widgets/RevokeDelegationModal';
 import { delegateDetailsModel } from '../model/delegate-details-model';
@@ -102,21 +103,17 @@ export const YourDelegations = () => {
                   <Checkbox checked={selectedAccounts.includes(account)} onChange={() => toggleAccount(account)} />
                 </div>
                 <div className="flex-1 px-3">
-                  <ExplorersPopover
+                  <ContactItem
+                    name={account.name}
                     address={account.accountId}
-                    explorers={chain.explorers}
-                    button={
-                      <ContactItem
-                        name={account.name}
-                        address={account.accountId}
-                        keyType={
-                          accountUtils.isShardAccount(account) || accountUtils.isChainAccount(account)
-                            ? account.keyType
-                            : undefined
-                        }
-                      />
+                    keyType={
+                      accountUtils.isVaultShardAccount(account) || accountUtils.isVaultChainAccount(account)
+                        ? account.keyType
+                        : undefined
                     }
-                  />
+                  >
+                    <AccountExplorers accountId={account.accountId} chain={chain} />
+                  </ContactItem>
                 </div>
                 <div className="flex w-[168px] flex-col items-end justify-center px-3">
                   <BodyText>
@@ -149,17 +146,19 @@ export const YourDelegations = () => {
                   </FootnoteText>
                 </div>
                 <div className="w-[62px] px-3">
-                  <Tooltip
-                    content={[...activeTracks[address]]
-                      .map((trackId) => t(allTracks.find((track) => track.id === trackId)?.value || ''))
-                      .join(', ')}
-                    pointer="up"
-                  >
-                    <div className="flex gap-1">
-                      <FootnoteText>{activeTracks[address].size || 0}</FootnoteText>
+                  <Tooltip side="bottom">
+                    <Tooltip.Trigger>
+                      <div className="flex gap-1">
+                        <FootnoteText>{activeTracks[address].size || 0}</FootnoteText>
 
-                      <Icon className="group-hover:text-icon-hover" name="info" size={16} />
-                    </div>
+                        <Icon className="group-hover:text-icon-hover" name="info" size={16} />
+                      </div>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>
+                      {[...activeTracks[address]]
+                        .map((trackId) => t(allTracks.find((track) => track.id === trackId)?.value || ''))
+                        .join(', ')}
+                    </Tooltip.Content>
                   </Tooltip>
                 </div>
                 <div className="w-11 items-center justify-center">
@@ -180,7 +179,6 @@ export const YourDelegations = () => {
                   {accounts?.length > 1 && (
                     <IconButton
                       name="delete"
-                      alt={t('governance.delegationDetails.revokeDelegationButton', { count: selectedAccounts.length })}
                       onClick={() =>
                         delegate &&
                         revokeDelegationModel.events.flowStarted({
